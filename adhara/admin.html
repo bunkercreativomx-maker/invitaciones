@@ -4,7 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
-<title>Confirmados · Cumple de Adhara</title>
+<title>Confirmados Adhara</title>
+<link rel="manifest" href="confirmados.webmanifest">
+<link rel="apple-touch-icon" href="img/apple-touch-icon.png">
+<link rel="icon" href="img/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Confirmados">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#3E9BE0">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Baloo+2:wght@500;700;800&display=swap">
 <style>
 :root{--red:#E3262C;--yel:#FFD21F;--blue:#1C3F94;--cream:#FFFDF4}
@@ -37,6 +45,15 @@ h1{font-size:clamp(30px,8vw,46px);line-height:1}
 .bar{display:flex;gap:8px;justify-content:center;margin-top:16px;flex-wrap:wrap}
 .bar button{font-family:"Luckiest Guy";font-size:17px;background:var(--blue);color:#fff;border:3px solid var(--yel);border-radius:999px;padding:9px 16px 5px;cursor:pointer}
 .upd{text-align:center;color:#fff;font-weight:700;margin-top:10px;font-size:14px}
+.toast{position:fixed;left:50%;top:14px;transform:translate(-50%,-150%);z-index:20;background:var(--yel);color:var(--blue);border:4px solid var(--red);
+  border-radius:18px;padding:12px 18px;font-weight:800;font-size:18px;box-shadow:0 8px 24px rgba(0,0,0,.3);transition:transform .45s cubic-bezier(.2,1.4,.4,1);max-width:92vw;text-align:center}
+.toast.show{transform:translate(-50%,0)}
+.it.new{animation:hl 2.5s ease-out}
+@keyframes hl{0%{background:#fff3a6}100%{background:transparent}}
+.bar .wa{background:#25D366;border-color:#fff}
+.bar .on{background:var(--red)}
+.tip{background:rgba(255,255,255,.92);border-radius:16px;padding:12px 14px;margin-top:16px;font-size:15px;font-weight:600;line-height:1.35;display:none}
+.tip b{font-weight:800}
 </style>
 </head>
 <body>
@@ -50,12 +67,24 @@ h1{font-size:clamp(30px,8vw,46px);line-height:1}
     <div class="s"><b id="no">–</b><span>no podrán ir</span></div>
   </div>
   <div class="list"><h2 class="tt">LA PANDILLA</h2><div id="items"><div class="empty">Cargando…</div></div></div>
-  <div class="bar"><button id="ref">Actualizar</button><button id="copy">Copiar lista</button></div>
+  <div class="bar"><button id="snd">🔔 Activar sonido</button><button id="wa" class="wa">Enviar lista por WhatsApp</button><button id="copy">Copiar lista</button><button id="ref">Actualizar</button></div>
+  <div class="tip" id="tip">📲 <b>Tip:</b> agrega esta página a tu pantalla de inicio para tenerla como app.<br>iPhone: botón <b>Compartir</b> → <b>Agregar a inicio</b>. Android: menú <b>⋮</b> → <b>Agregar a la pantalla principal</b>.</div>
   <div class="upd" id="upd"></div>
+<div class="toast" id="toast"></div>
 </div>
 <script>
 const PB='https://aprovaciones.bunkeragent.cloud/api/collections/rsvp_adhara/records';
-const K=new URLSearchParams(location.hash.slice(1)).get('k')||'';
+let K=new URLSearchParams(location.hash.slice(1)).get('k')||'';
+if(K){localStorage.setItem('adhara_k',K)}else{K=localStorage.getItem('adhara_k')||''}
+const standalone=matchMedia('(display-mode: standalone)').matches||navigator.standalone;
+if(!standalone)document.getElementById('tip').style.display='block';
+let seen0=new Set(JSON.parse(localStorage.getItem('adhara_seen')||'[]')),first=!localStorage.getItem('adhara_seen');
+let audioOn=false,ctx=null;
+function ding(){if(!audioOn||!ctx)return;const t=ctx.currentTime;[[659,0],[784,.13],[988,.26],[1319,.42]].forEach(([f,d])=>{const o=ctx.createOscillator(),g=ctx.createGain();o.type='triangle';o.frequency.value=f;
+ g.gain.setValueAtTime(0,t+d);g.gain.linearRampToValueAtTime(.35,t+d+.02);g.gain.exponentialRampToValueAtTime(.001,t+d+.35);o.connect(g).connect(ctx.destination);o.start(t+d);o.stop(t+d+.4)})}
+function toast(m){const e=document.getElementById('toast');e.textContent=m;e.classList.add('show');clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove('show'),5000)}
+document.getElementById('snd').onclick=()=>{audioOn=!audioOn;if(audioOn){ctx=ctx||new (window.AudioContext||window.webkitAudioContext)();ctx.resume();ding()}
+ const b=document.getElementById('snd');b.textContent=audioOn?'🔔 Sonido activado':'🔔 Activar sonido';b.classList.toggle('on',audioOn)};
 const esc=s=>String(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 let rows=[];
 async function load(){
@@ -67,20 +96,27 @@ async function load(){
     const seen=new Map();
     for(const x of d.items||[]){const key=x.nombre.trim().toLowerCase().replace(/\s+/g,' ');if(!seen.has(key))seen.set(key,x)}
     rows=[...seen.values()];
+    const newOnes=(d.items||[]).filter(x=>!seen0.has(x.id));
+    if(!first&&newOnes.length){const x=newOnes[0];toast(x.asiste?`🤠 ¡${x.nombre} confirmó! ${x.adultos} adulto${x.adultos==1?'':'s'}, ${x.ninos} niño${x.ninos==1?'':'s'}`:`😢 ${x.nombre} no podrá ir`);ding();if(navigator.vibrate)navigator.vibrate([120,60,120])}
+    const newIds=new Set(newOnes.map(x=>x.id));
+    (d.items||[]).forEach(x=>seen0.add(x.id));localStorage.setItem('adhara_seen',JSON.stringify([...seen0]));first=false;
     const si=rows.filter(x=>x.asiste),no=rows.filter(x=>!x.asiste);
     const ad=si.reduce((a,x)=>a+(x.adultos||0),0),ni=si.reduce((a,x)=>a+(x.ninos||0),0);
     document.getElementById('tot').textContent=ad+ni;document.getElementById('fam').textContent=si.length;
     document.getElementById('ad').textContent=ad;document.getElementById('ni').textContent=ni;document.getElementById('no').textContent=no.length;
     document.getElementById('items').innerHTML=rows.length?rows.map(x=>{
       const when=x.created_at?new Date(x.created_at.replace(' ','T')).toLocaleString('es-MX',{day:'numeric',month:'short',hour:'numeric',minute:'2-digit'}):'';
-      return `<div class="it ${x.asiste?'':'no'}"><span class="e">${x.asiste?'🤠':'😢'}</span><div><div class="n">${esc(x.nombre)}</div>${x.mensaje?`<div class="m">“${esc(x.mensaje)}”</div>`:''}<div class="m">${when}</div></div><div class="c">${x.asiste?`${x.adultos} 👤 · ${x.ninos} 🧒`:'No va'}</div></div>`}).join(''):'<div class="empty">Aún nadie confirma. ¡Comparte la invitación!</div>';
-    document.getElementById('upd').textContent='Actualizado '+new Date().toLocaleTimeString('es-MX',{hour:'numeric',minute:'2-digit'})+' · se actualiza solo cada 30 s';
+      return `<div class="it ${x.asiste?'':'no'} ${newIds.has(x.id)?'new':''}"><span class="e">${x.asiste?'🤠':'😢'}</span><div><div class="n">${esc(x.nombre)}</div>${x.mensaje?`<div class="m">“${esc(x.mensaje)}”</div>`:''}<div class="m">${when}</div></div><div class="c">${x.asiste?`${x.adultos} 👤 · ${x.ninos} 🧒`:'No va'}</div></div>`}).join(''):'<div class="empty">Aún nadie confirma. ¡Comparte la invitación!</div>';
+    document.getElementById('upd').textContent='Actualizado '+new Date().toLocaleTimeString('es-MX',{hour:'numeric',minute:'2-digit'})+' · se actualiza solo cada 20 s';
   }catch(e){document.getElementById('upd').textContent='No se pudo cargar. Revisa tu conexión.'}
 }
 document.getElementById('ref').onclick=load;
-document.getElementById('copy').onclick=()=>{const t=rows.filter(x=>x.asiste).map(x=>`${x.nombre}: ${x.adultos} adultos, ${x.ninos} niños`).join('\n');
-  navigator.clipboard.writeText(t||'Sin confirmados').then(()=>{document.getElementById('copy').textContent='¡Copiada!';setTimeout(()=>document.getElementById('copy').textContent='Copiar lista',1500)})};
-load();setInterval(load,30000);
+function listText(){const si=rows.filter(x=>x.asiste),no=rows.filter(x=>!x.asiste);const ad=si.reduce((a,x)=>a+(x.adultos||0),0),ni=si.reduce((a,x)=>a+(x.ninos||0),0);
+ return `🤠 *Confirmados cumple de Adhara*\nVie 23 oct · 5:00 PM\n*Total: ${ad+ni} personas* (${ad} adultos, ${ni} niños)\n\n`+si.map((x,i)=>`${i+1}. ${x.nombre} — ${x.adultos} ad, ${x.ninos} niños`).join('\n')+(no.length?`\n\n*No podrán ir:* ${no.map(x=>x.nombre).join(', ')}`:'')}
+document.getElementById('wa').onclick=()=>{window.open('https://wa.me/?text='+encodeURIComponent(listText()),'_blank')};
+document.getElementById('copy').onclick=()=>{navigator.clipboard.writeText(listText()).then(()=>{document.getElementById('copy').textContent='¡Copiada!';setTimeout(()=>document.getElementById('copy').textContent='Copiar lista',1500)})};
+load();setInterval(load,20000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)load()});
 </script>
 </body>
 </html>

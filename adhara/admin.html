@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Confirmados · Cumple de Adhara</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Baloo+2:wght@500;700;800&display=swap">
+<style>
+:root{--red:#E3262C;--yel:#FFD21F;--blue:#1C3F94;--cream:#FFFDF4}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"Baloo 2",system-ui,sans-serif;color:var(--blue);min-height:100vh;background:linear-gradient(180deg,#3E9BE0,#A9DDF8) fixed;padding:18px 14px 40px}
+.tt{font-family:"Luckiest Guy";color:var(--yel);-webkit-text-stroke:6px var(--red);paint-order:stroke fill;text-shadow:0 5px 0 var(--blue)}
+.wrap{max-width:720px;margin:0 auto}
+header{display:flex;align-items:center;gap:10px;justify-content:center;text-align:center}
+header img{height:90px;filter:drop-shadow(0 6px 6px rgba(0,0,0,.3))}
+h1{font-size:clamp(30px,8vw,46px);line-height:1}
+.sub{color:#fff;font-weight:800;text-align:center;margin-top:6px;text-shadow:0 2px 4px rgba(0,0,0,.3)}
+.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:18px}
+@media(min-width:620px){.stats{grid-template-columns:repeat(4,1fr)}}
+.s{background:var(--cream);border:5px solid var(--red);outline:4px solid var(--yel);border-radius:22px;padding:12px;text-align:center;box-shadow:0 8px 20px rgba(0,0,0,.2)}
+.s b{display:block;font-family:"Luckiest Guy";font-size:48px;color:var(--red);line-height:1.05}
+.s span{font-weight:800;font-size:15px}
+.s.big{grid-column:span 2;background:var(--yel)}
+@media(min-width:620px){.s.big{grid-column:span 4}}
+.s.big b{font-size:64px;color:var(--blue)}
+.list{background:var(--cream);border:5px solid var(--red);outline:4px solid var(--yel);border-radius:22px;margin-top:22px;padding:8px 12px;box-shadow:0 8px 20px rgba(0,0,0,.2)}
+.list h2{font-size:28px;margin:6px 0 4px;text-align:center}
+.it{display:flex;gap:10px;align-items:flex-start;padding:10px 4px;border-bottom:2px dashed #e6dcc0}
+.it:last-child{border-bottom:0}
+.it .e{font-size:24px}
+.it .n{font-weight:800;font-size:18px;line-height:1.2}
+.it .m{font-size:15px;color:#4a5a8a}
+.it .c{margin-left:auto;text-align:right;font-weight:800;white-space:nowrap}
+.it.no .n{color:#8a8fa8;text-decoration:line-through}
+.empty{text-align:center;padding:18px;font-weight:700}
+.bar{display:flex;gap:8px;justify-content:center;margin-top:16px;flex-wrap:wrap}
+.bar button{font-family:"Luckiest Guy";font-size:17px;background:var(--blue);color:#fff;border:3px solid var(--yel);border-radius:999px;padding:9px 16px 5px;cursor:pointer}
+.upd{text-align:center;color:#fff;font-weight:700;margin-top:10px;font-size:14px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header><img src="img/woody.webp" alt=""><div><h1 class="tt">CONFIRMADOS</h1><div class="sub">Cumple de Adhara · Vie 23 oct · 5:00 PM</div></div><img src="img/buzz.webp" alt=""></header>
+  <div class="stats">
+    <div class="s big"><b id="tot">–</b><span>personas en total</span></div>
+    <div class="s"><b id="fam">–</b><span>familias que vienen</span></div>
+    <div class="s"><b id="ad">–</b><span>adultos</span></div>
+    <div class="s"><b id="ni">–</b><span>niños</span></div>
+    <div class="s"><b id="no">–</b><span>no podrán ir</span></div>
+  </div>
+  <div class="list"><h2 class="tt">LA PANDILLA</h2><div id="items"><div class="empty">Cargando…</div></div></div>
+  <div class="bar"><button id="ref">Actualizar</button><button id="copy">Copiar lista</button></div>
+  <div class="upd" id="upd"></div>
+</div>
+<script>
+const PB='https://aprovaciones.bunkeragent.cloud/api/collections/rsvp_adhara/records';
+const K=new URLSearchParams(location.hash.slice(1)).get('k')||'';
+const esc=s=>String(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let rows=[];
+async function load(){
+  if(!K){document.getElementById('items').innerHTML='<div class="empty">Falta la clave en el enlace.</div>';return}
+  try{
+    const r=await fetch(`${PB}?k=${encodeURIComponent(K)}&perPage=500&sort=-created_at`);
+    const d=await r.json();
+    // la ultima respuesta de cada nombre es la que cuenta
+    const seen=new Map();
+    for(const x of d.items||[]){const key=x.nombre.trim().toLowerCase().replace(/\s+/g,' ');if(!seen.has(key))seen.set(key,x)}
+    rows=[...seen.values()];
+    const si=rows.filter(x=>x.asiste),no=rows.filter(x=>!x.asiste);
+    const ad=si.reduce((a,x)=>a+(x.adultos||0),0),ni=si.reduce((a,x)=>a+(x.ninos||0),0);
+    document.getElementById('tot').textContent=ad+ni;document.getElementById('fam').textContent=si.length;
+    document.getElementById('ad').textContent=ad;document.getElementById('ni').textContent=ni;document.getElementById('no').textContent=no.length;
+    document.getElementById('items').innerHTML=rows.length?rows.map(x=>{
+      const when=x.created_at?new Date(x.created_at.replace(' ','T')).toLocaleString('es-MX',{day:'numeric',month:'short',hour:'numeric',minute:'2-digit'}):'';
+      return `<div class="it ${x.asiste?'':'no'}"><span class="e">${x.asiste?'🤠':'😢'}</span><div><div class="n">${esc(x.nombre)}</div>${x.mensaje?`<div class="m">“${esc(x.mensaje)}”</div>`:''}<div class="m">${when}</div></div><div class="c">${x.asiste?`${x.adultos} 👤 · ${x.ninos} 🧒`:'No va'}</div></div>`}).join(''):'<div class="empty">Aún nadie confirma. ¡Comparte la invitación!</div>';
+    document.getElementById('upd').textContent='Actualizado '+new Date().toLocaleTimeString('es-MX',{hour:'numeric',minute:'2-digit'})+' · se actualiza solo cada 30 s';
+  }catch(e){document.getElementById('upd').textContent='No se pudo cargar. Revisa tu conexión.'}
+}
+document.getElementById('ref').onclick=load;
+document.getElementById('copy').onclick=()=>{const t=rows.filter(x=>x.asiste).map(x=>`${x.nombre}: ${x.adultos} adultos, ${x.ninos} niños`).join('\n');
+  navigator.clipboard.writeText(t||'Sin confirmados').then(()=>{document.getElementById('copy').textContent='¡Copiada!';setTimeout(()=>document.getElementById('copy').textContent='Copiar lista',1500)})};
+load();setInterval(load,30000);
+</script>
+</body>
+</html>

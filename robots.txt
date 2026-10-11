@@ -1,0 +1,2 @@
+User-agent: *
+Disallow: /adhara/admin.html

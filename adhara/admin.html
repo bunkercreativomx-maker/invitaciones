@@ -112,7 +112,7 @@ async function load(){
 }
 document.getElementById('ref').onclick=load;
 function listText(){const si=rows.filter(x=>x.asiste),no=rows.filter(x=>!x.asiste);const ad=si.reduce((a,x)=>a+(x.adultos||0),0),ni=si.reduce((a,x)=>a+(x.ninos||0),0);
- return `🤠 *Confirmados cumple de Adhara*\nVie 23 oct · 5:00 PM\n*Total: ${ad+ni} personas* (${ad} adultos, ${ni} niños)\n\n`+si.map((x,i)=>`${i+1}. ${x.nombre} — ${x.adultos} ad, ${x.ninos} niños`).join('\n')+(no.length?`\n\n*No podrán ir:* ${no.map(x=>x.nombre).join(', ')}`:'')}
+ return `🤠 *Confirmados cumple de Adhara*\nVie 23 oct · 5:00 PM\n*Total: ${ad+ni} personas* (${ad} adultos, ${ni} niños)\n\n`+si.map((x,i)=>`${i+1}. ${x.nombre} — ${x.adultos} adulto${x.adultos==1?"":"s"}, ${x.ninos} niño${x.ninos==1?"":"s"}`).join('\n')+(no.length?`\n\n*No podrán ir:* ${no.map(x=>x.nombre).join(', ')}`:'')}
 document.getElementById('wa').onclick=()=>{window.open('https://wa.me/?text='+encodeURIComponent(listText()),'_blank')};
 document.getElementById('copy').onclick=()=>{navigator.clipboard.writeText(listText()).then(()=>{document.getElementById('copy').textContent='¡Copiada!';setTimeout(()=>document.getElementById('copy').textContent='Copiar lista',1500)})};
 load();setInterval(load,20000);

@@ -1,7 +1,7 @@
 {
   "name": "Confirmados · Cumple de Adhara",
   "short_name": "Confirmados",
-  "start_url": "admin.html",
+  "id": "confirmados-adhara",
   "scope": "./",
   "display": "standalone",
   "background_color": "#3E9BE0",

@@ -67,14 +67,15 @@ h1{font-size:clamp(30px,8vw,46px);line-height:1}
     <div class="s"><b id="no">–</b><span>no podrán ir</span></div>
   </div>
   <div class="list"><h2 class="tt">LA PANDILLA</h2><div id="items"><div class="empty">Cargando…</div></div></div>
-  <div class="bar"><button id="snd">🔔 Activar sonido</button><button id="wa" class="wa">Enviar lista por WhatsApp</button><button id="copy">Copiar lista</button><button id="ref">Actualizar</button></div>
+  <div class="bar"><button id="push" class="on">📲 Activar notificaciones</button><button id="snd">🔔 Activar sonido</button><button id="wa" class="wa">Enviar lista por WhatsApp</button><button id="copy">Copiar lista</button><button id="ref">Actualizar</button></div>
   <div class="tip" id="tip">📲 <b>Tip:</b> agrega esta página a tu pantalla de inicio para tenerla como app.<br>iPhone: botón <b>Compartir</b> → <b>Agregar a inicio</b>. Android: menú <b>⋮</b> → <b>Agregar a la pantalla principal</b>.</div>
   <div class="upd" id="upd"></div>
 <div class="toast" id="toast"></div>
+<div class="tip" id="pushTip" style="display:none"></div>
 </div>
 <script>
 const PB='https://aprovaciones.bunkeragent.cloud/api/collections/rsvp_adhara/records';
-let K=new URLSearchParams(location.hash.slice(1)).get('k')||'';
+let K=new URLSearchParams(location.search).get('k')||new URLSearchParams(location.hash.slice(1)).get('k')||'';
 if(K){localStorage.setItem('adhara_k',K)}else{K=localStorage.getItem('adhara_k')||''}
 const standalone=matchMedia('(display-mode: standalone)').matches||navigator.standalone;
 if(!standalone)document.getElementById('tip').style.display='block';
@@ -115,6 +116,37 @@ function listText(){const si=rows.filter(x=>x.asiste),no=rows.filter(x=>!x.asist
  return `🤠 *Confirmados cumple de Adhara*\nVie 23 oct · 5:00 PM\n*Total: ${ad+ni} personas* (${ad} adultos, ${ni} niños)\n\n`+si.map((x,i)=>`${i+1}. ${x.nombre} — ${x.adultos} adulto${x.adultos==1?"":"s"}, ${x.ninos} niño${x.ninos==1?"":"s"}`).join('\n')+(no.length?`\n\n*No podrán ir:* ${no.map(x=>x.nombre).join(', ')}`:'')}
 document.getElementById('wa').onclick=()=>{window.open('https://wa.me/?text='+encodeURIComponent(listText()),'_blank')};
 document.getElementById('copy').onclick=()=>{navigator.clipboard.writeText(listText()).then(()=>{document.getElementById('copy').textContent='¡Copiada!';setTimeout(()=>document.getElementById('copy').textContent='Copiar lista',1500)})};
+
+// ---- Notificaciones push ----
+const VAPID='BE94A4stC8ciLOsTkVkVJkiI2X-GJ2MQjSqdFt6gpr_0-ulqPvFqdkcvfPW2GNSv-AEcuUhEjXU6Mlo1ul3_1f4';
+const PUSH_URL='https://aprovaciones.bunkeragent.cloud/api/collections/push_adhara/records';
+const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
+const pb=document.getElementById('push'),pt=document.getElementById('pushTip');
+function b64(s){const p='='.repeat((4-s.length%4)%4),b=atob((s+p).replace(/-/g,'+').replace(/_/g,'/'));return Uint8Array.from([...b].map(c=>c.charCodeAt(0)))}
+function pushState(){if(!('serviceWorker' in navigator)||!('PushManager' in window)||!('Notification' in window)){
+  if(isIOS&&!standalone){pb.textContent='📲 Activar notificaciones';return}pb.style.display='none';return}
+  if(Notification.permission==='granted'&&localStorage.getItem('adhara_push')){pb.textContent='✅ Notificaciones activadas';pb.classList.remove('on')}}
+let swReg=null;
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').then(r=>{swReg=r;pushState()}).catch(()=>{});
+pushState();
+pb.onclick=async()=>{
+  pt.style.display='none';
+  if(isIOS&&!standalone){pt.innerHTML='📲 En iPhone primero agrega esta página a tu <b>pantalla de inicio</b> (Compartir → Agregar a inicio), ábrela desde el ícono de Woody y toca otra vez este botón.';pt.style.display='block';return}
+  if(!('PushManager' in window)){pt.textContent='Este celular o navegador no permite notificaciones. Usa Chrome (Android) o agrega la página a inicio (iPhone).';pt.style.display='block';return}
+  try{
+    const perm=await Notification.requestPermission();
+    if(perm!=='granted'){pt.textContent='No se dieron permisos. Puedes activarlos en los ajustes del navegador y volver a tocar el botón.';pt.style.display='block';return}
+    const reg=swReg||await navigator.serviceWorker.ready;
+    let sub=await reg.pushManager.getSubscription();
+    if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64(VAPID)});
+    const j=sub.toJSON();
+    const r=await fetch(PUSH_URL+'?k='+encodeURIComponent(K),{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({endpoint:j.endpoint,sub:j,ua:navigator.userAgent.slice(0,290),created_at:new Date().toISOString()})});
+    if(!r.ok&&r.status!==400)throw new Error(r.status);
+    localStorage.setItem('adhara_push','1');pushState();toast('✅ ¡Listo! Te llegará un aviso con cada confirmación');
+  }catch(e){pt.textContent='No se pudieron activar ('+(e.message||e)+'). Intenta de nuevo.';pt.style.display='block'}
+};
+
 load();setInterval(load,20000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)load()});
 </script>
